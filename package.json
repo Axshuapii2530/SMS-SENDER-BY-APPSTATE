@@ -1,22 +1,27 @@
 {
   "name": "facebook-message-bot",
   "version": "1.0.0",
-  "description": "Facebook Group Message Sender Bot",
+  "description": "Facebook Group Message Sender Bot by Axshu",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
-    "login": "node login.js",
-    "dev": "nodemon bot.js"
+    "test": "echo \"No tests specified\" && exit 0"
   },
+  "keywords": [
+    "facebook",
+    "bot",
+    "messenger",
+    "automation",
+    "group",
+    "message"
+  ],
+  "author": "Axshu 🩷",
+  "license": "MIT",
   "dependencies": {
     "ws3-fca": "latest",
-    "express": "^4.18.2",
-    "dotenv": "^16.0.3"
+    "express": "^4.18.2"
   },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-  },
-  "keywords": ["facebook", "bot", "messenger", "automation"],
-  "author": "Axshu 🩷",
-  "license": "MIT"
+  "engines": {
+    "node": ">=14.0.0"
+  }
 }
