@@ -4,21 +4,55 @@
  * Description: Sends messages from files with random timing and prefix support.
  */
 
-// Try different ways to import the Facebook API
-let login;
+console.log("=".repeat(60));
+console.log("🤖 FACEBOOK MESSAGE BOT - STARTING");
+console.log("=".repeat(60));
+console.log("👨‍💻 Developer: Axshu 🩷");
+console.log("📅 " + new Date().toLocaleString());
+console.log("=".repeat(60));
+
+// Try different Facebook API libraries
+let facebookAPI;
+let loginFunction;
+
 try {
-  // Method 1: Direct import
-  login = require("ws3-fca");
+  console.log("📦 Loading Facebook API library...");
+  // Try fca-unofficial first (more reliable)
+  facebookAPI = require("fca-unofficial");
+  console.log("✅ Using fca-unofficial package");
+  
+  // Check available methods
+  if (typeof facebookAPI === 'function') {
+    loginFunction = facebookAPI;
+  } else if (facebookAPI && typeof facebookAPI.login === 'function') {
+    loginFunction = facebookAPI.login;
+  } else if (facebookAPI && typeof facebookAPI.default === 'function') {
+    loginFunction = facebookAPI.default;
+  }
 } catch (err) {
-  console.error("❌ Error importing ws3-fca:", err.message);
+  console.log("⚠️ fca-unofficial not found, trying alternatives...");
+  
   try {
-    // Method 2: Try alternative import
-    const fca = require("ws3-fca");
-    login = fca.default || fca.login || fca;
+    // Try ws3-fca as fallback
+    const ws3fca = require("ws3-fca");
+    console.log("✅ Using ws3-fca package");
+    
+    if (typeof ws3fca === 'function') {
+      loginFunction = ws3fca;
+    } else if (ws3fca && typeof ws3fca.login === 'function') {
+      loginFunction = ws3fca.login;
+    }
   } catch (err2) {
-    console.error("❌ Failed to import Facebook API");
+    console.error("❌ Both fca-unofficial and ws3-fca failed to load");
+    console.log("💡 Install packages with: npm install fca-unofficial express");
     process.exit(1);
   }
+}
+
+if (!loginFunction) {
+  console.error("❌ Could not find login function in the package");
+  console.log("🔍 Available exports:", Object.keys(facebookAPI || {}));
+  process.exit(1);
 }
 
 const fs = require("fs");
@@ -31,8 +65,35 @@ try {
   console.log("✅ appstate.json loaded successfully");
 } catch (err) {
   console.error("❌ Error reading appstate.json:", err.message);
-  console.log("\nℹ️ Please create appstate.json with valid Facebook session");
-  console.log("   You can get it from browser cookies or use a login script");
+  console.log("\n📝 Create appstate.json with your Facebook session data");
+  console.log("   You can get it from:");
+  console.log("   1. Browser cookies export");
+  console.log("   2. Other Facebook bot tools");
+  console.log("   3. Login scripts");
+  
+  // Create sample appstate.json
+  const sampleAppState = [
+    {
+      "key": "c_user",
+      "value": "YOUR_USER_ID_HERE",
+      "domain": ".facebook.com",
+      "path": "/"
+    },
+    {
+      "key": "xs",
+      "value": "YOUR_SESSION_TOKEN_HERE",
+      "domain": ".facebook.com",
+      "path": "/"
+    }
+  ];
+  
+  try {
+    fs.writeFileSync("appstate.json", JSON.stringify(sampleAppState, null, 2));
+    console.log("📄 Created sample appstate.json - PLEASE EDIT WITH YOUR DATA");
+  } catch (writeErr) {
+    console.error("❌ Could not create appstate.json:", writeErr.message);
+  }
+  
   process.exit(1);
 }
 
@@ -40,46 +101,137 @@ try {
 const MIN_INTERVAL = 2 * 60 * 1000; // 2 minutes
 const MAX_INTERVAL = 3 * 60 * 1000; // 3 minutes
 
-// ✅ Express Server for keeping bot alive
+// ✅ Express Server
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 app.get("/", (req, res) => {
+  const uptime = process.uptime();
+  const hours = Math.floor(uptime / 3600);
+  const minutes = Math.floor((uptime % 3600) / 60);
+  const seconds = Math.floor(uptime % 60);
+  
   res.send(`
     <!DOCTYPE html>
     <html>
     <head>
       <title>Facebook Message Bot</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
       <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-        h1 { color: #1877F2; }
-        .status { background: #f0f0f0; padding: 20px; border-radius: 10px; display: inline-block; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          min-height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 20px;
+        }
+        .container {
+          background: white;
+          border-radius: 20px;
+          padding: 40px;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+          max-width: 500px;
+          width: 100%;
+          text-align: center;
+        }
+        h1 { 
+          color: #1877F2; 
+          margin-bottom: 10px;
+          font-size: 28px;
+        }
+        .status { 
+          background: #f0f8ff;
+          padding: 20px;
+          border-radius: 15px;
+          margin: 20px 0;
+          border-left: 5px solid #1877F2;
+        }
+        .stats { 
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 15px;
+          margin: 20px 0;
+        }
+        .stat-item {
+          background: #f8f9fa;
+          padding: 15px;
+          border-radius: 10px;
+          text-align: center;
+        }
+        .stat-value {
+          font-size: 24px;
+          font-weight: bold;
+          color: #1877F2;
+        }
+        .stat-label {
+          font-size: 12px;
+          color: #666;
+          margin-top: 5px;
+        }
+        .online { color: #10B981; }
+        .developer { 
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #eee;
+          color: #666;
+          font-size: 14px;
+        }
       </style>
     </head>
     <body>
-      <div class="status">
-        <h1>🤖 Facebook Message Sender Bot</h1>
-        <p><strong>Status:</strong> <span style="color:green;">🟢 Running</span></p>
-        <p><strong>Developer:</strong> Axshu 🩷</p>
-        <p><strong>Uptime:</strong> ${Math.floor(process.uptime())} seconds</p>
+      <div class="container">
+        <h1>🤖 Facebook Message Bot</h1>
+        <p style="color: #666; margin-bottom: 20px;">Automated Group Message Sender</p>
+        
+        <div class="status">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+            <div style="width: 10px; height: 10px; background: #10B981; border-radius: 50%;"></div>
+            <span style="font-weight: bold; color: #10B981;">🟢 ONLINE & RUNNING</span>
+          </div>
+          <p>Server is active and sending messages</p>
+        </div>
+        
+        <div class="stats">
+          <div class="stat-item">
+            <div class="stat-value">${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}</div>
+            <div class="stat-label">UPTIME</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">${PORT}</div>
+            <div class="stat-label">PORT</div>
+          </div>
+        </div>
+        
+        <div style="background: #f0f8ff; padding: 15px; border-radius: 10px; margin-top: 20px;">
+          <p style="font-weight: bold; color: #1877F2; margin-bottom: 5px;">📡 Endpoint Status</p>
+          <p style="color: #666; font-size: 14px;">Web server running on port ${PORT}</p>
+        </div>
+        
+        <div class="developer">
+          <p>👨‍💻 Developed by <strong>Axshu 🩷</strong></p>
+          <p style="font-size: 12px; margin-top: 5px;">${new Date().toLocaleString()}</p>
+        </div>
       </div>
     </body>
     </html>
   `);
 });
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`🌐 Web server running on port ${PORT}`);
-  console.log(`🌐 Open http://localhost:${PORT} to check status`);
+  console.log(`🌐 Web server: http://localhost:${PORT}`);
 });
 
 /**
- * Read file content or return default
+ * Read file content
  */
 function readFileContent(filename, defaultContent = "") {
   try {
     if (fs.existsSync(filename)) {
-      const content = fs.readFileSync(filename, "utf-8").trim();
-      if (content) return content;
+      return fs.readFileSync(filename, "utf-8").trim();
     }
   } catch (err) {
     console.error(`❌ Error reading ${filename}:`, err.message);
@@ -93,24 +245,24 @@ function readFileContent(filename, defaultContent = "") {
 function loadMessages() {
   const content = readFileContent("message.txt", "");
   if (!content) {
-    console.error("❌ message.txt is empty or not found!");
-    console.log("ℹ️ Creating sample message.txt...");
-    const sampleMessages = [
-      "Hello everyone! Welcome to the group. 🎉",
-      "Please read group rules before posting. 📜",
-      "Stay respectful to all members. ❤️",
+    console.log("📝 Creating sample message.txt...");
+    const defaultMessages = [
+      "Hello everyone! Welcome to our group. 🎉",
+      "Please read the group rules before posting. 📜",
+      "Stay respectful and kind to all members. ❤️",
+      "Share your thoughts and engage in discussions. 💬",
       "Have a wonderful day! 😊"
     ];
-    fs.writeFileSync("message.txt", sampleMessages.join('\n'));
-    console.log("✅ Created sample message.txt");
-    return sampleMessages;
+    fs.writeFileSync("message.txt", defaultMessages.join('\n'));
+    console.log("✅ Created message.txt with sample messages");
+    return defaultMessages;
   }
   
   const messages = content.split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0);
   
-  console.log(`📄 Loaded ${messages.length} messages from message.txt`);
+  console.log(`📄 Messages: ${messages.length} loaded`);
   return messages;
 }
 
@@ -120,23 +272,23 @@ function loadMessages() {
 function loadGroupIDs() {
   const content = readFileContent("tid.txt", "");
   if (!content) {
-    console.error("❌ tid.txt is empty or not found!");
-    console.log("⚠️ Please create tid.txt with Facebook Group IDs");
-    console.log("📝 Format: One group ID per line");
-    console.log("🔗 Example: 1234567890123456");
+    console.error("❌ tid.txt not found!");
+    console.log("📝 Creating sample tid.txt...");
+    fs.writeFileSync("tid.txt", "YOUR_GROUP_ID_HERE\nSECOND_GROUP_ID_HERE");
+    console.log("✅ Created tid.txt - PLEASE EDIT WITH YOUR GROUP IDs");
     process.exit(1);
   }
   
   const ids = content.split('\n')
     .map(line => line.trim())
-    .filter(line => line.length > 10); // Basic validation
+    .filter(line => line.length > 5);
   
   if (ids.length === 0) {
-    console.error("❌ No valid group IDs found in tid.txt");
+    console.error("❌ No valid group IDs in tid.txt");
     process.exit(1);
   }
   
-  console.log(`📄 Loaded ${ids.length} group IDs from tid.txt`);
+  console.log(`📄 Groups: ${ids.length} loaded`);
   return ids;
 }
 
@@ -146,31 +298,29 @@ function loadGroupIDs() {
 function loadPrefix() {
   const prefix = readFileContent("hatername.txt", "").trim();
   if (prefix) {
-    console.log(`🏷️ Prefix loaded: "${prefix}"`);
-  } else {
-    console.log("🏷️ No prefix found (hatername.txt is empty)");
+    console.log(`🏷️ Prefix: "${prefix}"`);
   }
-  return prefix;
+  return prefix || "";
 }
 
 /**
- * Get random interval between min and max
+ * Get random interval
  */
 function getRandomInterval() {
-  return Math.floor(Math.random() * (MAX_INTERVAL - MIN_INTERVAL + 1)) + MIN_INTERVAL;
+  return Math.floor(Math.random() * (MAX_INTERVAL - MIN_INTERVAL)) + MIN_INTERVAL;
 }
 
 /**
- * Format time for display
+ * Format time display
  */
 function formatTime(ms) {
   const minutes = Math.floor(ms / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
-  return `${minutes}m ${seconds}s`;
+  return `${minutes} min ${seconds} sec`;
 }
 
 /**
- * Send message to group
+ * Send message
  */
 function sendMessage(api, groupID, message, prefix) {
   const fullMessage = prefix ? `${prefix} ${message}` : message;
@@ -178,11 +328,11 @@ function sendMessage(api, groupID, message, prefix) {
   return new Promise((resolve) => {
     api.sendMessage(fullMessage, groupID, (err) => {
       if (err) {
-        console.error(`❌ Error sending to group ${groupID}:`, err.message || err);
+        console.error(`❌ Failed to send to ${groupID}: ${err.message || err}`);
         resolve(false);
       } else {
-        const shortMsg = message.length > 40 ? message.substring(0, 37) + "..." : message;
-        console.log(`✅ Sent to ${groupID}: ${shortMsg}`);
+        const preview = message.length > 40 ? message.substring(0, 37) + "..." : message;
+        console.log(`✅ Sent to ${groupID}: ${preview}`);
         resolve(true);
       }
     });
@@ -194,181 +344,133 @@ function sendMessage(api, groupID, message, prefix) {
  */
 function startMessageScheduler(api) {
   console.log("\n" + "=".repeat(60));
-  console.log("🚀 INITIALIZING MESSAGE SCHEDULER");
+  console.log("📨 MESSAGE SCHEDULER INITIALIZED");
   console.log("=".repeat(60));
   
   const messages = loadMessages();
-  const groupIDs = loadGroupIDs();
+  const groups = loadGroupIDs();
   const prefix = loadPrefix();
   
-  console.log("\n📊 CONFIGURATION SUMMARY:");
-  console.log("   • Groups:".padEnd(20), groupIDs.length);
-  console.log("   • Messages:".padEnd(20), messages.length);
-  console.log("   • Interval:".padEnd(20), `${MIN_INTERVAL/60000}-${MAX_INTERVAL/60000} min`);
-  console.log("   • Prefix:".padEnd(20), `"${prefix || 'None'}"`);
-  console.log("=".repeat(60) + "\n");
+  console.log("\n📊 CONFIGURATION:");
+  console.log("├─ Groups:", groups.length);
+  console.log("├─ Messages:", messages.length);
+  console.log(`├─ Interval: ${MIN_INTERVAL/60000}-${MAX_INTERVAL/60000} minutes`);
+  console.log(`└─ Prefix: "${prefix || 'None'}"`);
+  console.log("=".repeat(60));
   
-  let messageIndex = 0;
-  let groupIndex = 0;
-  let messageCount = 0;
-  let isPaused = false;
+  let msgIndex = 0;
+  let grpIndex = 0;
+  let totalSent = 0;
+  let isActive = true;
   
-  async function sendNextMessage() {
-    if (isPaused) return;
+  async function processNextMessage() {
+    if (!isActive) return;
     
-    const currentGroupID = groupIDs[groupIndex];
-    const currentMessage = messages[messageIndex];
-    messageCount++;
+    const groupId = groups[grpIndex];
+    const message = messages[msgIndex];
+    totalSent++;
     
-    const timeStr = new Date().toLocaleTimeString('en-IN', { 
-      hour12: true,
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
+      hour12: true
     });
     
-    console.log(`\n📤 [${timeStr}] MESSAGE #${messageCount}`);
-    console.log(`   ├─ Group: ${currentGroupID}`);
-    console.log(`   ├─ Message: "${currentMessage.substring(0, 50)}${currentMessage.length > 50 ? '...' : ''}"`);
-    if (prefix) console.log(`   └─ Prefix: "${prefix}"`);
+    console.log(`\n📤 [${timeStr}] Message #${totalSent}`);
+    console.log(`   ├─ To: ${groupId}`);
+    console.log(`   ├─ Content: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
     
-    const success = await sendMessage(api, currentGroupID, currentMessage, prefix);
+    const success = await sendMessage(api, groupId, message, prefix);
     
     if (success) {
-      // Update indexes for next message
-      messageIndex = (messageIndex + 1) % messages.length;
-      groupIndex = (groupIndex + 1) % groupIDs.length;
+      // Update indexes
+      msgIndex = (msgIndex + 1) % messages.length;
+      grpIndex = (grpIndex + 1) % groups.length;
       
-      // Schedule next message with random interval
-      const nextInterval = getRandomInterval();
-      const nextTime = new Date(Date.now() + nextInterval);
-      const nextTimeStr = nextTime.toLocaleTimeString('en-IN', { 
-        hour12: true,
+      // Schedule next
+      const nextDelay = getRandomInterval();
+      const nextTime = new Date(Date.now() + nextDelay);
+      const nextTimeStr = nextTime.toLocaleTimeString('en-IN', {
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: true
       });
       
-      console.log(`   ⏰ Next message in ${formatTime(nextInterval)} at ${nextTimeStr}`);
-      
-      setTimeout(sendNextMessage, nextInterval);
+      console.log(`   ⏰ Next: ${formatTime(nextDelay)} at ${nextTimeStr}`);
+      setTimeout(processNextMessage, nextDelay);
     } else {
-      // If failed, wait longer before retry
-      console.log(`   ⚠️ Retrying in 5 minutes...`);
-      setTimeout(sendNextMessage, 5 * 60 * 1000);
+      console.log(`   ⚠️ Retrying in 2 minutes...`);
+      setTimeout(processNextMessage, 120000);
     }
   }
   
-  // Start sending messages
-  console.log("🎯 STARTING MESSAGES...");
-  console.log(`   First message will be sent to: ${groupIDs[0]}`);
-  console.log(`   First message: "${messages[0].substring(0, 40)}${messages[0].length > 40 ? '...' : ''}"`);
+  // Start sending
+  console.log("\n🎯 STARTING MESSAGE DELIVERY...");
+  console.log(`   First message to: ${groups[0]}`);
   
-  // Send first message after 3 seconds
+  // Initial delay
   setTimeout(() => {
-    sendNextMessage();
+    processNextMessage();
   }, 3000);
   
-  // Pause/Resume handler (optional)
+  // Status commands
   process.on('SIGUSR1', () => {
-    isPaused = !isPaused;
-    console.log(`\n${isPaused ? '⏸️' : '▶️'} Bot ${isPaused ? 'paused' : 'resumed'}`);
+    isActive = !isActive;
+    console.log(`\n${isActive ? '▶️' : '⏸️'} Bot ${isActive ? 'resumed' : 'paused'}`);
   });
   
   process.on('SIGUSR2', () => {
     console.log('\n📊 CURRENT STATUS:');
-    console.log(`   Messages sent: ${messageCount}`);
-    console.log(`   Next group: ${groupIDs[groupIndex]}`);
-    console.log(`   Next message: "${messages[messageIndex].substring(0, 30)}..."`);
+    console.log(`   Messages sent: ${totalSent}`);
+    console.log(`   Next group: ${groups[grpIndex]}`);
+    console.log(`   Next message index: ${msgIndex + 1}/${messages.length}`);
   });
 }
 
-// 🟢 START BOT
-console.log("=".repeat(60));
-console.log("🤖 FACEBOOK MESSAGE BOT - STARTING");
-console.log("=".repeat(60));
-console.log("👨‍💻 Developer: Axshu 🩷");
-console.log("📅 " + new Date().toLocaleString());
-console.log("=".repeat(60));
+// 🟢 LOGIN TO FACEBOOK
+console.log("\n🔑 ATTEMPTING FACEBOOK LOGIN...");
 
-// Try different login methods
 try {
-  // Method 1: If login is a function
-  if (typeof login === 'function') {
-    console.log("🔑 Attempting login with appstate...");
-    login({ appState }, (err, api) => {
-      handleLoginResult(err, api);
-    });
-  } 
-  // Method 2: If login has a login method
-  else if (login && typeof login.login === 'function') {
-    console.log("🔑 Attempting login via login.login()...");
-    login.login({ appState }, (err, api) => {
-      handleLoginResult(err, api);
-    });
-  }
-  // Method 3: If it's the API object directly
-  else if (login && typeof login.getCurrentUserID === 'function') {
-    console.log("🔑 Already logged in...");
-    handleLoginResult(null, login);
-  }
-  else {
-    console.error("❌ Could not determine login method");
-    console.log("ℹ️ Available methods in login object:", Object.keys(login).filter(k => typeof login[k] === 'function'));
-    process.exit(1);
-  }
-} catch (loginError) {
-  console.error("❌ Login error:", loginError.message);
-  console.log("\n🔧 TROUBLESHOOTING:");
-  console.log("1. Check if appstate.json is valid");
-  console.log("2. Try: npm install ws3-fca@latest");
-  console.log("3. Check package structure");
-}
-
-function handleLoginResult(err, api) {
-  if (err) {
-    console.error("❌ Login failed:", err.message || err);
-    console.log("\n🛠️ SOLUTIONS:");
-    console.log("1. Generate new appstate.json");
-    console.log("2. Check Facebook account status");
-    console.log("3. Verify internet connection");
-    return;
-  }
-  
-  console.log("✅ LOGIN SUCCESSFUL!");
-  
-  // Get user info
-  api.getCurrentUserID((err, userId) => {
-    if (!err && userId) {
-      api.getUserInfo(userId, (err, userInfo) => {
-        if (!err && userInfo && userInfo[userId]) {
-          console.log(`👤 Logged in as: ${userInfo[userId].name}`);
-        }
-      });
+  loginFunction({ appState }, (err, api) => {
+    if (err) {
+      console.error("❌ Login failed:", err.message || err);
+      console.log("\n🔧 TROUBLESHOOTING:");
+      console.log("1. Check appstate.json validity");
+      console.log("2. Try generating new session");
+      console.log("3. Check account status");
+      return;
     }
+    
+    console.log("✅ LOGIN SUCCESSFUL!");
+    
+    // Get user info
+    api.getCurrentUserID((err, userId) => {
+      if (!err && userId) {
+        api.getUserInfo(userId, (err, info) => {
+          if (!err && info && info[userId]) {
+            console.log(`👤 User: ${info[userId].name}`);
+          }
+        });
+      }
+    });
+    
+    // Start scheduler
+    setTimeout(() => {
+      startMessageScheduler(api);
+    }, 2000);
   });
-  
-  // Start message scheduler after 2 seconds
-  setTimeout(() => {
-    console.log("\n" + "=".repeat(60));
-    console.log("📨 INITIALIZING MESSAGE SCHEDULER");
-    console.log("=".repeat(60));
-    startMessageScheduler(api);
-  }, 2000);
+} catch (loginErr) {
+  console.error("❌ Login error:", loginErr.message);
+  console.log("\n💡 Try: npm install fca-unofficial@latest");
 }
 
-// Handle graceful shutdown
+// Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n\n' + "=".repeat(60));
-  console.log('👋 Bot stopped by user (Ctrl+C)');
+  console.log('👋 Bot stopped gracefully');
   console.log('📅 ' + new Date().toLocaleString());
   console.log("=".repeat(60));
   process.exit(0);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('\n⚠️ UNCAUGHT EXCEPTION:', err.message);
-  console.log('🔄 Restarting in 10 seconds...');
-  setTimeout(() => {
-    console.log('🔄 Attempting restart...');
-  }, 10000);
 });
