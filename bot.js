@@ -11,101 +11,109 @@ console.log("👨‍💻 Developer: Axshu 🩷");
 console.log("📅 " + new Date().toLocaleString());
 console.log("=".repeat(60));
 
-// Try different Facebook API libraries
-let facebookAPI;
-let loginFunction;
+// Import dependencies
+const fs = require('fs');
+const express = require('express');
 
+// Try to load facebook-chat-api
+let login;
 try {
-  console.log("📦 Loading Facebook API library...");
-  // Try fca-unofficial first (more reliable)
-  facebookAPI = require("fca-unofficial");
-  console.log("✅ Using fca-unofficial package");
-  
-  // Check available methods
-  if (typeof facebookAPI === 'function') {
-    loginFunction = facebookAPI;
-  } else if (facebookAPI && typeof facebookAPI.login === 'function') {
-    loginFunction = facebookAPI.login;
-  } else if (facebookAPI && typeof facebookAPI.default === 'function') {
-    loginFunction = facebookAPI.default;
-  }
+  console.log("📦 Loading facebook-chat-api...");
+  login = require("facebook-chat-api");
+  console.log("✅ Package loaded successfully");
 } catch (err) {
-  console.log("⚠️ fca-unofficial not found, trying alternatives...");
-  
-  try {
-    // Try ws3-fca as fallback
-    const ws3fca = require("ws3-fca");
-    console.log("✅ Using ws3-fca package");
-    
-    if (typeof ws3fca === 'function') {
-      loginFunction = ws3fca;
-    } else if (ws3fca && typeof ws3fca.login === 'function') {
-      loginFunction = ws3fca.login;
-    }
-  } catch (err2) {
-    console.error("❌ Both fca-unofficial and ws3-fca failed to load");
-    console.log("💡 Install packages with: npm install fca-unofficial express");
-    process.exit(1);
-  }
-}
-
-if (!loginFunction) {
-  console.error("❌ Could not find login function in the package");
-  console.log("🔍 Available exports:", Object.keys(facebookAPI || {}));
+  console.error("❌ Failed to load facebook-chat-api:", err.message);
+  console.log("\n💡 Install with: npm install facebook-chat-api express");
   process.exit(1);
 }
 
-const fs = require("fs");
-const express = require("express");
-
-// ✅ Load AppState
+// Load appstate.json
 let appState;
 try {
-  appState = JSON.parse(fs.readFileSync("appstate.json", "utf-8"));
-  console.log("✅ appstate.json loaded successfully");
+  const appStateContent = fs.readFileSync('appstate.json', 'utf8');
+  appState = JSON.parse(appStateContent);
+  console.log("✅ appstate.json loaded");
 } catch (err) {
-  console.error("❌ Error reading appstate.json:", err.message);
-  console.log("\n📝 Create appstate.json with your Facebook session data");
-  console.log("   You can get it from:");
-  console.log("   1. Browser cookies export");
-  console.log("   2. Other Facebook bot tools");
-  console.log("   3. Login scripts");
+  console.error("❌ Error loading appstate.json:", err.message);
   
   // Create sample appstate.json
   const sampleAppState = [
     {
       "key": "c_user",
-      "value": "YOUR_USER_ID_HERE",
+      "value": "100000000000000",
       "domain": ".facebook.com",
-      "path": "/"
+      "path": "/",
+      "hostOnly": false,
+      "creation": new Date().toISOString(),
+      "lastAccessed": new Date().toISOString()
     },
     {
       "key": "xs",
-      "value": "YOUR_SESSION_TOKEN_HERE",
+      "value": "abcdefghijklmnopqrstuvwxyz123456",
       "domain": ".facebook.com",
-      "path": "/"
+      "path": "/",
+      "hostOnly": false,
+      "creation": new Date().toISOString(),
+      "lastAccessed": new Date().toISOString()
+    },
+    {
+      "key": "fr",
+      "value": "abcdefghijklmnopqrstuvwxyz123456",
+      "domain": ".facebook.com",
+      "path": "/",
+      "hostOnly": false,
+      "creation": new Date().toISOString(),
+      "lastAccessed": new Date().toISOString()
+    },
+    {
+      "key": "datr",
+      "value": "abcdefghijklmnopqrstuvwxyz",
+      "domain": ".facebook.com",
+      "path": "/",
+      "hostOnly": false,
+      "creation": new Date().toISOString(),
+      "lastAccessed": new Date().toISOString()
     }
   ];
   
   try {
-    fs.writeFileSync("appstate.json", JSON.stringify(sampleAppState, null, 2));
-    console.log("📄 Created sample appstate.json - PLEASE EDIT WITH YOUR DATA");
+    fs.writeFileSync('appstate.json', JSON.stringify(sampleAppState, null, 2));
+    console.log("📄 Created sample appstate.json");
+    console.log("⚠️ PLEASE REPLACE WITH YOUR ACTUAL FACEBOOK SESSION DATA");
+    appState = sampleAppState;
   } catch (writeErr) {
     console.error("❌ Could not create appstate.json:", writeErr.message);
+    process.exit(1);
   }
-  
-  process.exit(1);
 }
 
-// ✅ Message Configuration
+// Create necessary files if they don't exist
+const requiredFiles = {
+  'message.txt': `Hello everyone! Welcome to the group. 🎉\nThis is an automated message.\nPlease follow group rules.\nHave a nice day! 😊\nStay safe everyone! ❤️`,
+  'hatername.txt': '[BOT]',
+  'tid.txt': 'YOUR_GROUP_ID_HERE\nANOTHER_GROUP_ID_HERE'
+};
+
+Object.entries(requiredFiles).forEach(([filename, content]) => {
+  if (!fs.existsSync(filename)) {
+    try {
+      fs.writeFileSync(filename, content);
+      console.log(`📄 Created ${filename}`);
+    } catch (err) {
+      console.error(`❌ Could not create ${filename}:`, err.message);
+    }
+  }
+});
+
+// Configuration
 const MIN_INTERVAL = 2 * 60 * 1000; // 2 minutes
 const MAX_INTERVAL = 3 * 60 * 1000; // 3 minutes
 
-// ✅ Express Server
+// Start Express server
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get("/", (req, res) => {
+app.get('/', (req, res) => {
   const uptime = process.uptime();
   const hours = Math.floor(uptime / 3600);
   const minutes = Math.floor((uptime % 3600) / 60);
@@ -116,65 +124,64 @@ app.get("/", (req, res) => {
     <html>
     <head>
       <title>Facebook Message Bot</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
       <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        body {
+          font-family: Arial, sans-serif;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          margin: 0;
+          padding: 20px;
           min-height: 100vh;
           display: flex;
           justify-content: center;
           align-items: center;
-          padding: 20px;
         }
         .container {
           background: white;
-          border-radius: 20px;
-          padding: 40px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-          max-width: 500px;
+          padding: 30px;
+          border-radius: 15px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+          max-width: 400px;
           width: 100%;
           text-align: center;
         }
-        h1 { 
-          color: #1877F2; 
+        h1 {
+          color: #1877F2;
           margin-bottom: 10px;
-          font-size: 28px;
         }
-        .status { 
+        .status {
           background: #f0f8ff;
-          padding: 20px;
-          border-radius: 15px;
-          margin: 20px 0;
-          border-left: 5px solid #1877F2;
-        }
-        .stats { 
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 15px;
-          margin: 20px 0;
-        }
-        .stat-item {
-          background: #f8f9fa;
           padding: 15px;
           border-radius: 10px;
-          text-align: center;
+          margin: 20px 0;
+          border-left: 4px solid #1877F2;
+        }
+        .online {
+          color: #10B981;
+          font-weight: bold;
+        }
+        .stats {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin: 20px 0;
+        }
+        .stat {
+          background: #f8f9fa;
+          padding: 10px;
+          border-radius: 8px;
         }
         .stat-value {
-          font-size: 24px;
+          font-size: 20px;
           font-weight: bold;
           color: #1877F2;
         }
         .stat-label {
           font-size: 12px;
           color: #666;
-          margin-top: 5px;
         }
-        .online { color: #10B981; }
-        .developer { 
-          margin-top: 30px;
-          padding-top: 20px;
+        .footer {
+          margin-top: 20px;
+          padding-top: 15px;
           border-top: 1px solid #eee;
           color: #666;
           font-size: 14px;
@@ -184,35 +191,30 @@ app.get("/", (req, res) => {
     <body>
       <div class="container">
         <h1>🤖 Facebook Message Bot</h1>
-        <p style="color: #666; margin-bottom: 20px;">Automated Group Message Sender</p>
+        <p style="color: #666;">Automated Group Message Sender</p>
         
         <div class="status">
-          <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
-            <div style="width: 10px; height: 10px; background: #10B981; border-radius: 50%;"></div>
-            <span style="font-weight: bold; color: #10B981;">🟢 ONLINE & RUNNING</span>
-          </div>
-          <p>Server is active and sending messages</p>
+          <div class="online">🟢 ONLINE & RUNNING</div>
+          <p>Server is active</p>
         </div>
         
         <div class="stats">
-          <div class="stat-item">
+          <div class="stat">
             <div class="stat-value">${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}</div>
             <div class="stat-label">UPTIME</div>
           </div>
-          <div class="stat-item">
+          <div class="stat">
             <div class="stat-value">${PORT}</div>
             <div class="stat-label">PORT</div>
           </div>
         </div>
         
-        <div style="background: #f0f8ff; padding: 15px; border-radius: 10px; margin-top: 20px;">
-          <p style="font-weight: bold; color: #1877F2; margin-bottom: 5px;">📡 Endpoint Status</p>
-          <p style="color: #666; font-size: 14px;">Web server running on port ${PORT}</p>
+        <div style="background: #f0f8ff; padding: 10px; border-radius: 8px; margin: 15px 0;">
+          <p style="margin: 0; color: #1877F2; font-weight: bold;">👨‍💻 Developed by Axshu 🩷</p>
         </div>
         
-        <div class="developer">
-          <p>👨‍💻 Developed by <strong>Axshu 🩷</strong></p>
-          <p style="font-size: 12px; margin-top: 5px;">${new Date().toLocaleString()}</p>
+        <div class="footer">
+          <p>${new Date().toLocaleString()}</p>
         </div>
       </div>
     </body>
@@ -220,257 +222,173 @@ app.get("/", (req, res) => {
   `);
 });
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`🌐 Web server: http://localhost:${PORT}`);
+  console.log(`🌐 Web server running on port ${PORT}`);
+  console.log(`🔗 http://localhost:${PORT}`);
 });
 
-/**
- * Read file content
- */
-function readFileContent(filename, defaultContent = "") {
+// Helper functions
+function readFile(filename) {
   try {
     if (fs.existsSync(filename)) {
-      return fs.readFileSync(filename, "utf-8").trim();
+      return fs.readFileSync(filename, 'utf8').trim();
     }
   } catch (err) {
     console.error(`❌ Error reading ${filename}:`, err.message);
   }
-  return defaultContent;
+  return '';
 }
 
-/**
- * Load messages from message.txt
- */
 function loadMessages() {
-  const content = readFileContent("message.txt", "");
+  const content = readFile('message.txt');
   if (!content) {
-    console.log("📝 Creating sample message.txt...");
-    const defaultMessages = [
-      "Hello everyone! Welcome to our group. 🎉",
-      "Please read the group rules before posting. 📜",
-      "Stay respectful and kind to all members. ❤️",
-      "Share your thoughts and engage in discussions. 💬",
-      "Have a wonderful day! 😊"
-    ];
-    fs.writeFileSync("message.txt", defaultMessages.join('\n'));
-    console.log("✅ Created message.txt with sample messages");
-    return defaultMessages;
+    console.error("❌ message.txt is empty!");
+    return ["Default message: Hello from the bot!"];
   }
-  
   const messages = content.split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0);
-  
-  console.log(`📄 Messages: ${messages.length} loaded`);
+  console.log(`📄 Loaded ${messages.length} messages`);
   return messages;
 }
 
-/**
- * Load group IDs from tid.txt
- */
-function loadGroupIDs() {
-  const content = readFileContent("tid.txt", "");
+function loadGroups() {
+  const content = readFile('tid.txt');
   if (!content) {
-    console.error("❌ tid.txt not found!");
-    console.log("📝 Creating sample tid.txt...");
-    fs.writeFileSync("tid.txt", "YOUR_GROUP_ID_HERE\nSECOND_GROUP_ID_HERE");
-    console.log("✅ Created tid.txt - PLEASE EDIT WITH YOUR GROUP IDs");
-    process.exit(1);
+    console.error("❌ tid.txt is empty! Please add group IDs");
+    return [];
   }
-  
-  const ids = content.split('\n')
+  const groups = content.split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 5);
-  
-  if (ids.length === 0) {
-    console.error("❌ No valid group IDs in tid.txt");
-    process.exit(1);
-  }
-  
-  console.log(`📄 Groups: ${ids.length} loaded`);
-  return ids;
+  console.log(`📄 Loaded ${groups.length} group IDs`);
+  return groups;
 }
 
-/**
- * Load prefix from hatername.txt
- */
 function loadPrefix() {
-  const prefix = readFileContent("hatername.txt", "").trim();
+  const prefix = readFile('hatername.txt');
   if (prefix) {
     console.log(`🏷️ Prefix: "${prefix}"`);
   }
-  return prefix || "";
+  return prefix;
 }
 
-/**
- * Get random interval
- */
 function getRandomInterval() {
   return Math.floor(Math.random() * (MAX_INTERVAL - MIN_INTERVAL)) + MIN_INTERVAL;
 }
 
-/**
- * Format time display
- */
-function formatTime(ms) {
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000);
-  return `${minutes} min ${seconds} sec`;
-}
+// Login to Facebook
+console.log("\n🔑 Logging into Facebook...");
 
-/**
- * Send message
- */
-function sendMessage(api, groupID, message, prefix) {
-  const fullMessage = prefix ? `${prefix} ${message}` : message;
-  
-  return new Promise((resolve) => {
-    api.sendMessage(fullMessage, groupID, (err) => {
-      if (err) {
-        console.error(`❌ Failed to send to ${groupID}: ${err.message || err}`);
-        resolve(false);
-      } else {
-        const preview = message.length > 40 ? message.substring(0, 37) + "..." : message;
-        console.log(`✅ Sent to ${groupID}: ${preview}`);
-        resolve(true);
-      }
-    });
-  });
-}
-
-/**
- * Start message scheduler
- */
-function startMessageScheduler(api) {
-  console.log("\n" + "=".repeat(60));
-  console.log("📨 MESSAGE SCHEDULER INITIALIZED");
-  console.log("=".repeat(60));
-  
-  const messages = loadMessages();
-  const groups = loadGroupIDs();
-  const prefix = loadPrefix();
-  
-  console.log("\n📊 CONFIGURATION:");
-  console.log("├─ Groups:", groups.length);
-  console.log("├─ Messages:", messages.length);
-  console.log(`├─ Interval: ${MIN_INTERVAL/60000}-${MAX_INTERVAL/60000} minutes`);
-  console.log(`└─ Prefix: "${prefix || 'None'}"`);
-  console.log("=".repeat(60));
-  
-  let msgIndex = 0;
-  let grpIndex = 0;
-  let totalSent = 0;
-  let isActive = true;
-  
-  async function processNextMessage() {
-    if (!isActive) return;
-    
-    const groupId = groups[grpIndex];
-    const message = messages[msgIndex];
-    totalSent++;
-    
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-    
-    console.log(`\n📤 [${timeStr}] Message #${totalSent}`);
-    console.log(`   ├─ To: ${groupId}`);
-    console.log(`   ├─ Content: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
-    
-    const success = await sendMessage(api, groupId, message, prefix);
-    
-    if (success) {
-      // Update indexes
-      msgIndex = (msgIndex + 1) % messages.length;
-      grpIndex = (grpIndex + 1) % groups.length;
-      
-      // Schedule next
-      const nextDelay = getRandomInterval();
-      const nextTime = new Date(Date.now() + nextDelay);
-      const nextTimeStr = nextTime.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-      
-      console.log(`   ⏰ Next: ${formatTime(nextDelay)} at ${nextTimeStr}`);
-      setTimeout(processNextMessage, nextDelay);
-    } else {
-      console.log(`   ⚠️ Retrying in 2 minutes...`);
-      setTimeout(processNextMessage, 120000);
+login({ appState: appState }, (err, api) => {
+  if (err) {
+    switch (err.error) {
+      case 'login-approval':
+        console.log('⚠️ Enter 2FA code:');
+        break;
+      default:
+        console.error('❌ Login failed:', err.error || err.message);
+        console.log("\n🔧 Solutions:");
+        console.log("1. Generate new appstate.json");
+        console.log("2. Check account status");
+        console.log("3. Try manual login first");
     }
+    return;
   }
   
-  // Start sending
-  console.log("\n🎯 STARTING MESSAGE DELIVERY...");
-  console.log(`   First message to: ${groups[0]}`);
+  console.log("✅ Login successful!");
   
-  // Initial delay
+  // Get user info
+  api.getCurrentUserID((err, id) => {
+    if (!err && id) {
+      api.getUserInfo(id, (err, info) => {
+        if (!err && info && info[id]) {
+          console.log(`👤 Logged in as: ${info[id].name}`);
+        }
+      });
+    }
+  });
+  
+  // Start message scheduler
   setTimeout(() => {
-    processNextMessage();
-  }, 3000);
-  
-  // Status commands
-  process.on('SIGUSR1', () => {
-    isActive = !isActive;
-    console.log(`\n${isActive ? '▶️' : '⏸️'} Bot ${isActive ? 'resumed' : 'paused'}`);
-  });
-  
-  process.on('SIGUSR2', () => {
-    console.log('\n📊 CURRENT STATUS:');
-    console.log(`   Messages sent: ${totalSent}`);
-    console.log(`   Next group: ${groups[grpIndex]}`);
-    console.log(`   Next message index: ${msgIndex + 1}/${messages.length}`);
-  });
-}
-
-// 🟢 LOGIN TO FACEBOOK
-console.log("\n🔑 ATTEMPTING FACEBOOK LOGIN...");
-
-try {
-  loginFunction({ appState }, (err, api) => {
-    if (err) {
-      console.error("❌ Login failed:", err.message || err);
-      console.log("\n🔧 TROUBLESHOOTING:");
-      console.log("1. Check appstate.json validity");
-      console.log("2. Try generating new session");
-      console.log("3. Check account status");
+    const messages = loadMessages();
+    const groups = loadGroups();
+    const prefix = loadPrefix();
+    
+    if (messages.length === 0 || groups.length === 0) {
+      console.error("❌ Cannot start: No messages or groups configured");
       return;
     }
     
-    console.log("✅ LOGIN SUCCESSFUL!");
+    console.log("\n" + "=".repeat(60));
+    console.log("🚀 BOT READY TO SEND MESSAGES");
+    console.log("=".repeat(60));
+    console.log(`📊 Stats:`);
+    console.log(`   • Groups: ${groups.length}`);
+    console.log(`   • Messages: ${messages.length}`);
+    console.log(`   • Interval: ${MIN_INTERVAL/60000}-${MAX_INTERVAL/60000} min`);
+    console.log(`   • Prefix: "${prefix || 'None'}"`);
+    console.log("=".repeat(60) + "\n");
     
-    // Get user info
-    api.getCurrentUserID((err, userId) => {
-      if (!err && userId) {
-        api.getUserInfo(userId, (err, info) => {
-          if (!err && info && info[userId]) {
-            console.log(`👤 User: ${info[userId].name}`);
-          }
+    let messageIndex = 0;
+    let groupIndex = 0;
+    let messageCount = 0;
+    
+    function sendNextMessage() {
+      const groupId = groups[groupIndex];
+      const message = messages[messageIndex];
+      const fullMessage = prefix ? `${prefix} ${message}` : message;
+      
+      messageCount++;
+      const timeStr = new Date().toLocaleTimeString('en-IN', {
+        hour12: true,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      
+      console.log(`\n📤 [${timeStr}] Message #${messageCount}`);
+      console.log(`   To: ${groupId}`);
+      console.log(`   Message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
+      
+      api.sendMessage(fullMessage, groupId, (err) => {
+        if (err) {
+          console.error(`❌ Send failed:`, err.message || err);
+        } else {
+          console.log(`✅ Sent successfully`);
+        }
+        
+        // Update indexes
+        messageIndex = (messageIndex + 1) % messages.length;
+        groupIndex = (groupIndex + 1) % groups.length;
+        
+        // Schedule next message
+        const nextDelay = getRandomInterval();
+        const nextTime = new Date(Date.now() + nextDelay);
+        const nextTimeStr = nextTime.toLocaleTimeString('en-IN', {
+          hour12: true,
+          hour: '2-digit',
+          minute: '2-digit'
         });
-      }
-    });
+        
+        const minutes = Math.floor(nextDelay / 60000);
+        const seconds = Math.floor((nextDelay % 60000) / 1000);
+        console.log(`⏰ Next in ${minutes}m ${seconds}s at ${nextTimeStr}`);
+        
+        setTimeout(sendNextMessage, nextDelay);
+      });
+    }
     
-    // Start scheduler
-    setTimeout(() => {
-      startMessageScheduler(api);
-    }, 2000);
-  });
-} catch (loginErr) {
-  console.error("❌ Login error:", loginErr.message);
-  console.log("\n💡 Try: npm install fca-unofficial@latest");
-}
+    // Send first message immediately
+    console.log("🎯 Sending first message now...");
+    sendNextMessage();
+    
+  }, 2000);
+});
 
-// Graceful shutdown
+// Handle exit
 process.on('SIGINT', () => {
-  console.log('\n\n' + "=".repeat(60));
-  console.log('👋 Bot stopped gracefully');
+  console.log('\n\n👋 Bot stopped by user');
   console.log('📅 ' + new Date().toLocaleString());
-  console.log("=".repeat(60));
   process.exit(0);
 });
